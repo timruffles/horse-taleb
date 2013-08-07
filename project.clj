@@ -5,4 +5,5 @@
                  [org.clojure/clojure "1.3.0"]
                  [org.clojure/data.json "0.2.2"]
                  [org.clojure/clojure-contrib "1.2.0"]
+                 [clojure-opennlp "0.3.1"]
                  ])

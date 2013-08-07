@@ -2,5 +2,30 @@
   (:use [horse-taleb.core])
   (:use [clojure.test]))
 
-(deftest replace-me ;; FIXME: write
-  (is false "No tests have been written."))
+(deftest n-grams-test
+  (let [expected {'(\a \b) {\a 1 \b 2}}
+        corpus [
+          [\a \b \a]
+          [\a \b \b]
+          [\a \b \b]
+        ]         
+       ]
+    
+  (is (= expected (n-gram-model 3 corpus)))
+         ))
+
+(deftest freqs-to-cdf
+  (is (= {
+          \a 1/2
+          \b 3/4
+          \c 1
+          } (frequences-to-cdf (frequencies [\a \a \b \c]))
+      ))
+         )
+
+(deftest cdf-item-from-point-test
+  (let [test-map {\a 1/2 \b 1/2}]
+  (is (= \a (cdf-item-from-point 0.5 test-map)))
+  (is (= \b (cdf-item-from-point 0.51 test-map)))
+         
+         ))
