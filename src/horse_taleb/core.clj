@@ -67,30 +67,49 @@
      )
   )
 
+
 (defn frequences-to-cdf [freqs]
   (let [sum (reduce + (vals freqs))]
-    (into {} (for [[k v] freqs] 
-               [k (/ v sum)]
-               ))
+    (letfn [
+        (make-cdf [m k v]
+          (let [current (+ (:cume m) (/ v sum))]
+          {
+            :cume current
+            :all  (into (:all m) {k current})
+          }
+          ))
+      ]
+      (:all (reduce-kv make-cdf {:cume 0 :all {}} freqs))
     )
   )
-
-#_(defn random-cdf-item [cdf]
-  (let [point rand]
-  ))
+)
 
 (defn cdf-item-from-point [point cdf]
-   (first (first (take-while (fn [[k v]] (<= point v)) cdf)))
+   (first (first (drop-while (fn [[k v]] (> point v)) cdf)))
   )
 
-#_(defn next-word [chain max-n n-grams-models-by-n]
-  (let [n (min max-n (count n-grams-models-by-n))
-    ; choose a suffix of max-n if possible
-        ; return
-        ; backoff to (- max-n 1)
-        word (random-cdf-item (n-grams-models-by-n n))
+(defn random-cdf-item [cdf]
+  (cdf-item-from-point (rand) cdf))
+
+(defn n-gram-suffix [prefix n-grams]
+  (let [
+    suffixes (get n-grams prefix)
+    ]
+    (if suffixes
+      (random-cdf-item suffixes))
+    ))
+
+(defn next-word [chain max-n n-grams-models-by-n]
+  (let [n (min max-n (apply max (keys n-grams-models-by-n)))
+        prefix (take-last (- n 1) chain)
+        word (n-gram-suffix prefix (or (get n-grams-models-by-n n) {}))
         ]
+      (or word 
+          (if (= n 0)
+            nil
+            (next-word chain (- n 1) n-grams-models-by-n)))
   ))
+
 
 
 ; take all n-grams and create suffix | prefix frequencies
