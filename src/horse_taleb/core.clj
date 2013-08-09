@@ -43,13 +43,12 @@
 (def get-sentences (make-sentence-detector "en-sent.bin"))
 (def tokenize (make-tokenizer "en-token.bin"))
 
-(def unigrams frequencies)
 
 (defn strings-to-sentences [posts]
   (->> posts
     get-sentences
     tokenize
-    (map #(concat ['START-SENTENCE] %))
+    (map #(concat ["START-SENTENCE"] %))
     ))
 
 (defn prefixes-to-observed-ngrams [n sentences]
@@ -58,15 +57,6 @@
    (mapcat #(partition n 1 %))
    (group-by #(take (- n 1) %))
   ))
-
-
-(defn n-gram-model [n sentences]
-   (let [prefixes-to-ngrams (prefixes-to-observed-ngrams n sentences)
-         suffix-freqs (map frequencies (map #(last %) (vals prefixes-to-ngrams)))]
-     (zipmap (keys prefixes-to-ngrams) suffix-freqs)
-     )
-  )
-
 
 (defn frequences-to-cdf [freqs]
   (let [sum (reduce + (vals freqs))]
@@ -83,6 +73,18 @@
     )
   )
 )
+
+(defn unigrams [words] {nil (frequences-to-cdf (frequencies words))})
+
+(defn n-gram-model [n sentences]
+   (if (= n 1)
+     (unigrams (apply concat sentences))
+     (let [prefixes-to-ngrams (prefixes-to-observed-ngrams n sentences)
+           suffix-freqs (map (comp frequences-to-cdf frequencies) (map #(last %) (vals prefixes-to-ngrams)))]
+       (zipmap (keys prefixes-to-ngrams) suffix-freqs)
+       ))
+  )
+
 
 (defn cdf-item-from-point [point cdf]
    (first (first (drop-while (fn [[k v]] (> point v)) cdf)))
@@ -127,8 +129,9 @@
     )
   )
 
-#_(defn format-sentence
-  (let fn [to-remove '#{START-SENTENCE END-SENTENCE}]
+#_(defn format-sentence [s]
+  (let [to-remove '#{"START-SENTENCE"}]
+    (string/join " " (filter #(not (to-remove %)) s))
   ))
 
 #_(defn horsey-run []

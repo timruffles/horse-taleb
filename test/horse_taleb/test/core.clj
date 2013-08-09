@@ -3,7 +3,7 @@
   (:use [clojure.test]))
 
 (deftest n-grams-test
-  (let [expected {'(\a \b) {\a 1 \b 2}}
+  (let [expected {'(\a \b) {\a 1/3 \b 1}}
         corpus [
           [\a \b \a]
           [\a \b \b]
@@ -12,6 +12,18 @@
        ]
     
   (is (= expected (n-gram-model 3 corpus)))
+         ))
+
+(deftest n-grams-unigrams
+  (let [expected {nil {\a 4/9 \b 1}}
+        corpus [
+          [\a \b \a]
+          [\a \b \b]
+          [\a \b \b]
+        ]         
+       ]
+    
+  (is (= expected (n-gram-model 1 corpus)))
          ))
 
 (deftest freqs-to-cdf
