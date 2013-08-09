@@ -48,4 +48,27 @@
     (is (not= nil (next-word [\a \b] 3 n-gram-models))))
          )
 
+(deftest next-word-backoff-test
+  (let [
+        n-gram-models {1 {nil {\a 1/3 \b 1}}}
+      ]
+    (is (not= nil (next-word [\a \b] 3 n-gram-models))))
+         )
+
+
+(def test-sentences [
+ "of a middle-aged man boasting of his successes in college In addition, school produces fear"
+  "As you age, or get richer, you have more duties than. Nothing new for the members here but we placed it withing"
+  "Best of all, your body weight drops up working for a C-minus entrepreneur"
+                    ])
+
+(deftest generate-sentence-test
+  (let [
+    a-sentence (generate-sentence 140 (strings-to-ngrams test-sentences 3))
+   ]
+  (prn a-sentence)))
+
+
+         
+
 

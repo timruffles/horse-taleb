@@ -44,10 +44,10 @@
 (def tokenize (make-tokenizer "en-token.bin"))
 
 
-(defn strings-to-sentences [posts]
-  (->> posts
-    get-sentences
-    tokenize
+(defn strings-to-sentences [strings]
+  (->> strings
+    (mapcat get-sentences)
+    (map tokenize)
     (map #(concat ["START-SENTENCE"] %))
     ))
 
@@ -85,6 +85,12 @@
        ))
   )
 
+(defn strings-to-ngrams [strings max-n]
+  (reduce (fn [all n]
+    (into all {n (n-gram-model n (strings-to-sentences strings))})
+    ) {} strings)
+  )
+
 
 (defn cdf-item-from-point [point cdf]
    (first (first (drop-while (fn [[k v]] (> point v)) cdf)))
@@ -116,23 +122,23 @@
 
 ; take all n-grams and create suffix | prefix frequencies
 
-
-#_(defn generate-sentence [max-length n-grams]
-  (loop [
-         grams []
-         gram-step (start-gram n-grams)
-        ]
-    (if (> (gram-chain-count (concat grams grams-step) max-length))
-      (gram-chain-to-sentence grams)
-      (recur (concat grams grams-step) (next-gram gram-step n-grams))
-      )
-    )
-  )
-
-#_(defn format-sentence [s]
+(defn format-sentence [s]
   (let [to-remove '#{"START-SENTENCE"}]
     (string/join " " (filter #(not (to-remove %)) s))
   ))
+
+(defn generate-sentence [max-length n-grams]
+  (loop [
+         words ["START-SENTENCE"]
+        ]
+    (let [word-candidate (next-word words max-length n-grams)]
+      (if (> (count (format-sentence (concat words word-candidate))) max-length)
+        (format-sentence words)
+        (recur (concat words word-candidate))
+        )
+    ))
+  )
+
 
 #_(defn horsey-run []
   (swap! posts update-post (get-page-file 13012333374))
