@@ -4,6 +4,7 @@
    ]
   [:use [clojure.contrib.seq :only [indexed]]
         [opennlp.nlp :only [make-sentence-detector make-tokenizer]]
+        [clojure.pprint :only [pprint]]
    ]
   )
 
@@ -32,8 +33,11 @@
 (defn get-page-posts [id]
   (let [
         url (fb-graph-url (str id "/posts"))
+        data (slurp url)
         ]
-    (read-fb-data (slurp url)))
+    (spit "/tmp/taleb.json" data)
+    (spit "corpa/facebook.json" (json/write-str (read-fb-data data)))
+    (read-fb-data data))
   )
 
 (defn get-page-file [id]
@@ -46,9 +50,9 @@
 
 (defn strings-to-sentences [strings]
   (->> strings
+    (map string/lower-case)
     (mapcat get-sentences)
     (map tokenize)
-    (map #(concat ["START-SENTENCE"] %))
     ))
 
 (defn prefixes-to-observed-ngrams [n sentences]
@@ -80,15 +84,17 @@
    (if (= n 1)
      (unigrams (apply concat sentences))
      (let [prefixes-to-ngrams (prefixes-to-observed-ngrams n sentences)
-           suffix-freqs (map (comp frequences-to-cdf frequencies) (map #(last %) (vals prefixes-to-ngrams)))]
+           suffix-freqs (map (comp frequences-to-cdf frequencies) (map #(map last %) (vals prefixes-to-ngrams)))]
        (zipmap (keys prefixes-to-ngrams) suffix-freqs)
        ))
   )
 
 (defn strings-to-ngrams [strings max-n]
-  (reduce (fn [all n]
-    (into all {n (n-gram-model n (strings-to-sentences strings))})
-    ) {} strings)
+  (let [sentences (strings-to-sentences strings)]
+    (reduce (fn [all n]
+      (into all {n (n-gram-model n sentences)})
+      ) {} (range 1 (+ max-n 1)))
+    )
   )
 
 
@@ -112,7 +118,7 @@
         prefix (take-last (- n 1) chain)
         word (n-gram-suffix prefix (or (get n-grams-models-by-n n) {}))
         ]
-      (or word 
+      (or word
           (if (= n 0)
             nil
             (next-word chain (- n 1) n-grams-models-by-n)))
@@ -123,34 +129,44 @@
 ; take all n-grams and create suffix | prefix frequencies
 
 (defn format-sentence [s]
-  (let [to-remove '#{"START-SENTENCE"}]
-    (string/join " " (filter #(not (to-remove %)) s))
+  (let [no-space #{"" "?" "." ")" "(" "[" "]" "," ";" ":"}]
+    (string/join "" (mapcat (fn [[w n]]
+      (if (no-space n)
+          w
+          [w " "]
+            )) (partition 2 1 (concat s [""])))
+      )
   ))
 
 (defn generate-sentence [max-length n-grams]
   (loop [
-         words ["START-SENTENCE"]
+         words []
         ]
-    (let [word-candidate (next-word words max-length n-grams)]
-      (if (> (count (format-sentence (concat words word-candidate))) max-length)
+    (let [word-candidate (next-word words max-length n-grams)
+          sentence-candidate (concat words [word-candidate])
+          ]
+      (if (> (count (format-sentence sentence-candidate)) max-length)
         (format-sentence words)
-        (recur (concat words word-candidate))
+        (recur sentence-candidate)
         )
     ))
   )
 
+(def json-slurp (comp json/read-str slurp))
 
-#_(defn horsey-run []
-  (swap! posts update-post (get-page-file 13012333374))
+
+(defn horsey-run []
+  (swap! posts update-post (json-slurp "corpa/facebook.json"))
+  (swap! posts update-post (concat @posts (json-slurp "corpa/notebook.json")))
   (let [
-    chunks (half-sentences (sentences @posts))
+    n-grams (strings-to-ngrams @posts 3)
   ]
     (while true
-      (prn (string/join " " [ (rand-nth chunks) (rand-nth chunks) ]))
+      (prn (generate-sentence (+ 40 (rand-int 100)) n-grams))
       (Thread/sleep 500)
       )
     )
   )
 
-#_(defn -main [& args]
+(defn -main [& args]
   (horsey-run))
