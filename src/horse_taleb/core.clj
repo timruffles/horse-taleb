@@ -5,8 +5,17 @@
   [:use [clojure.contrib.seq :only [indexed]]
         [opennlp.nlp :only [make-sentence-detector make-tokenizer]]
         [clojure.pprint :only [pprint]]
+        [twitter.oauth]
+        [twitter.api.restful]
    ]
   )
+
+(def twitter-creds (make-oauth-creds
+  (System/getenv "TW_KEY")
+  (System/getenv "TW_SECRET")
+  (System/getenv "TW_TOKEN")
+  (System/getenv "TW_TOKEN_SECRET")
+                ))
 
 (def fb-credentials {
                      :id (System/getenv "FB_ID")
@@ -154,6 +163,12 @@
 
 (def json-slurp (comp json/read-str slurp))
 
+(def minutes (* 60 1000))
+
+(defn tweet [s]
+  (statuses-update :oauth-creds twitter-creds
+                   :params {:status s}) 
+  )
 
 (defn horsey-run []
   (swap! posts update-post (json-slurp "corpa/facebook.json"))
@@ -162,8 +177,11 @@
     n-grams (strings-to-ngrams @posts 3)
   ]
     (while true
-      (prn (generate-sentence (+ 40 (rand-int 100)) n-grams))
-      (Thread/sleep 500)
+      (let [s (generate-sentence (+ 40 (rand-int 100)) n-grams)]
+        (prn "Tweeting " s)
+        (tweet s)
+        (Thread/sleep (* minutes (+ 67 (rand-int 309))))
+        )
       )
     )
   )
